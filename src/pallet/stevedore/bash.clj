@@ -4,9 +4,8 @@
     [clojure.contrib.condition :as condition]
     [clojure.string :as string])
   (:use
-    [pallet.stevedore
-     :only [compound-form? special-form? emit emit-special emit-do emit-infix emit-function emit-function-call
-            splice-list *script-fn-dispatch* infix-operator?]]
+    [pallet.stevedore.common]
+    [pallet.stevedore]
     [pallet.common.string :only [quoted substring underscore]]))
 
 
@@ -397,3 +396,34 @@
   (if (seq args)
     (apply str (emit name) " " args)
     (emit name)))
+
+
+;; Script aggregation functions
+
+(defmethod do-script ::bash
+  [scripts]
+  (str
+   (->>
+    scripts
+    (map #(when % (string/trim %)))
+    (filter (complement string/blank?))
+    (string/join \newline))
+   \newline))
+
+(defmethod chain-commands ::bash
+  [scripts]
+  (string/join " && "
+    (filter
+     (complement string/blank?)
+     (map #(when % (string/trim %)) scripts))))
+
+(defmethod checked-commands ::bash
+  [message & cmds]
+  (let [chained-cmds (chain-commands cmds)]
+    (if (string/blank? chained-cmds)
+      ""
+      (str
+        "echo \"" message "...\"" \newline
+        "{ " chained-cmds "; } || { echo \"" message "\" failed; exit 1; } >&2 "
+        \newline
+        "echo \"...done\"\n"))))

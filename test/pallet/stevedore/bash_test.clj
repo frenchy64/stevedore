@@ -2,10 +2,11 @@
   (:use
    [pallet.common.string :only [quoted]]
    pallet.stevedore 
+   pallet.stevedore.common
    clojure.test)
   (:require
+   [clojure.contrib.seq :as c.seq]
    [pallet.script :as script]
-   [pallet.stevedore.common]
    [pallet.stevedore.bash]
    [pallet.common.filesystem :as filesystem]
    [pallet.common.logging.log4j :as log4j]
@@ -43,9 +44,22 @@
       (.replaceAll "[ ]+" " ")
       .trim))
 
-(with-stevedore-impl :pallet.stevedore.bash/bash
-  (script 
-    (.dot-method balh "lbha" "alsd")))
+;;; Implementation coverage tests
+(defn emit-special-coverage [impl]
+  "Returns a vector of two elements. First elements is a vector
+  of successfully dispatched special functions. Second element is a vector
+  of failed dispatches."
+  (c.seq/separate
+    (fn [s]
+      (try
+        (with-stevedore-impl impl
+          (emit-special s)
+        true
+        (catch Exception e
+          (not (.contains
+            (str e)
+            (str "java.lang.IllegalArgumentException: No method in multimethod 'emit-special' for dispatch value: [" impl " " s "]")))))))
+    @#'pallet.stevedore.common/special-forms))
 
 
 (deftest number-literal
@@ -350,7 +364,7 @@
 (deftest group-test
   (with-stevedore-impl :pallet.stevedore.bash/bash
 
-    (is (= "{ ls; }"
+    (is (= "{ ls }"
            (script (group (ls)))))
     (is (= "{ ls; ls; }"
            (script (group (ls) (ls)))))))

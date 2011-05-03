@@ -1,13 +1,10 @@
 (ns pallet.stevedore.batch
   (:require
     [clojure.contrib.condition :as condition]
-    [clojure.string :as string]
-    pallet.stevedore.common)
+    [clojure.string :as string])
   (:use
-    [pallet.stevedore 
-     :only [emit emit-special emit-function-call emit-do emit-function emit-infix
-            infix-operator?]]
-    [pallet.stevedore :only [emit]]))
+    [pallet.stevedore.common]
+    [pallet.stevedore]))
 
 (derive ::batch :pallet.stevedore.common/common-impl)
 
@@ -90,3 +87,11 @@
 (defmethod emit-special [::batch 'group]
   [type [ group & exprs]]
   (str "(\n" (string/join "\n" (map emit exprs)) "\n)"))
+
+(defmethod emit-special [::batch 'if] [type [if test true-form & false-form]]
+  (str "if " (emit test) " (\n"
+       (emit-do true-form)
+       "\n)"
+       (when (first false-form)
+         (str " else (\n" (emit-do (first false-form)))
+         "\n)")))
